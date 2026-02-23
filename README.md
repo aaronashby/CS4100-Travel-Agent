@@ -2,14 +2,6 @@
 
 Have you ever had to research what the weather will be like the week before your vacation? Did you also do itinerary planning last minute? This application might be the one for you! Our idea is to program a travel agent, intelligently factoring in a bunch of details, to help plan your trip ahead of time without having to do so much work. It would have the ability to see what type of clothes to pack based on the weather and location the user is traveling to. We were thinking of generating a packing list or the types of clothes that the user should bring during the trip whether it might snow, rain, be hot, etc. To implement this, we thought of using First Choice Hill Climbing and natural language processing for the intent of the user. We would suggest the type of clothes to wear such as either light or heavy clothes. The user would also have the ability to make the packing list themselves and add/drop. We would also like the ability to make packing lists for multiple people if you are going on the same trip with other people. We were thinking of using a Weather API for the weather and Aviationstack for flight data. Using flight data, we could incorporate/consider if there is a weight limit for the luggage or see different pricing for different airlines. We would also like to incorporate the ability to generate nearby attractions to do based on the weather. We could use the Constraint Satisfaction Problem (CSP) to use their hotel destination, utilize nearby restaurants, find nearby attractions based on that location, kind of like a complex scheduling puzzle. The variables would be the time slots of the day, the domain would be possible attractions, restaurants, or rest periods, and examples of constraints would be opening/closing hours, travel time between locations (calculated via A*), and total budget. Some soft constraints we could include as well to make the AI even better is to consider weather suitability, user fatigue levels, and category variety.
 
-**To run the app on a development server**:
-1. Activate your virtual environment
-2. Install Flask (`pip install flask` or `python3 install flask`)
-3. `cd` into the `frontend` directory
-4. When you run the program, the terminal should show the url at which the server is located. Navigate to that link
-    - If when clicking that link, access is denied, it's most likely because port 5000 is blocked
-    - If this is the case, run the command, `flask run -p 8000` to start the server on a different port (8000). You should be able to click on that link and see our app
-
 ## Architecture
 
 Our application is built using a modern, decoupled client-server architecture:
@@ -18,3 +10,14 @@ Our application is built using a modern, decoupled client-server architecture:
 2. **Backend (Server)**: A RESTful API built with **Python** and **Flask**. It handles the heavy lifting, including complex business logic, calling external APIs (like weather and flight services), and executing our AI algorithms (A* and CSP) to generate smart travel itineraries.
    
 The frontend and backend run as independent applications and communicate with each other over HTTP via JSON API endpoints. 
+
+## How to Run
+
+1. Open two separate terminals
+    - In one terminal, `cd` into the `frontend` directory
+    - In the other, `cd` into the `backend` directory
+2. In the backend terminal, run `pip install -r requirements.txt` to install the backend dependencies
+3. In the frontend terminal, run `npm install` to install the frontend dependencies
+4. In the backend terminal, run the Flask API using `python app.py`
+5. In the frontend terminal, run the frontend server using `npm run dev`
+    - You should see a link that will take you to our app in localhost!
