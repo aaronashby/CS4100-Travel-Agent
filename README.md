@@ -9,3 +9,12 @@ Have you ever had to research what the weather will be like the week before your
 4. When you run the program, the terminal should show the url at which the server is located. Navigate to that link
     - If when clicking that link, access is denied, it's most likely because port 5000 is blocked
     - If this is the case, run the command, `flask run -p 8000` to start the server on a different port (8000). You should be able to click on that link and see our app
+
+## Architecture
+
+Our application is built using a modern, decoupled client-server architecture:
+
+1. **Frontend (Client)**: A lightweight, responsive web interface built with **React** and **TypeScript**. It is responsible for serving the HTML, rendering the UI, managing user state, and providing an interactive experience.
+2. **Backend (Server)**: A RESTful API built with **Python** and **Flask**. It handles the heavy lifting, including complex business logic, calling external APIs (like weather and flight services), and executing our AI algorithms (A* and CSP) to generate smart travel itineraries.
+   
+The frontend and backend run as independent applications and communicate with each other over HTTP via JSON API endpoints. 
