@@ -9,6 +9,7 @@
 * {
   box-sizing: border-box;
 }
+
 body {
   margin: 0;
   font-family:
@@ -37,13 +38,12 @@ body {
   border-bottom-left-radius: 20px;
   border-bottom-right-radius: 20px;
 }
-.hero.small {
-  padding: 28px 0;
-}
+
 .hero h1 {
   margin: 0;
   font-size: 28px;
 }
+
 .hero .tag {
   margin-top: 8px;
   color: rgba(255, 255, 255, 0.9);
@@ -56,6 +56,7 @@ body {
   box-shadow: 0 6px 18px rgba(24, 39, 75, 0.06);
   margin-top: 20px;
 }
+
 .card h2 {
   margin-top: 0;
 }
@@ -64,33 +65,13 @@ body {
   display: block;
   margin-bottom: 12px;
 }
-.trip-form input[type="text"],
-.trip-form input[type="date"],
-.trip-form input[type="number"],
-.trip-form select {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #e6e9ef;
-  border-radius: 8px;
-}
-.row {
-  display: flex;
-  gap: 12px;
-}
-.row label {
-  flex: 1;
-}
-.checkbox {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 
 .actions {
   margin-top: 18px;
   display: flex;
   gap: 12px;
 }
+
 .btn {
   background: var(--accent);
   color: white;
@@ -100,32 +81,11 @@ body {
   text-decoration: none;
   display: inline-block;
 }
+
 .btn.ghost {
   background: transparent;
   color: var(--accent);
   border: 1px solid rgba(43, 124, 255, 0.16);
-}
-
-.features ul {
-  margin: 0;
-  padding-left: 18px;
-  color: var(--muted);
-}
-
-.details dt {
-  font-weight: 600;
-  color: var(--muted);
-  display: inline-block;
-  width: 140px;
-}
-.details dd {
-  display: inline-block;
-  margin: 0 0 8px;
-}
-
-.packing-list {
-  margin: 0;
-  padding-left: 18px;
 }
 
 @media (max-width: 640px) {
