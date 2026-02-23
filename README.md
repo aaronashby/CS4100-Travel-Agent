@@ -5,6 +5,7 @@ Have you ever had to research what the weather will be like the week before your
 **To run the app on a development server**:
 1. Activate your virtual environment
 2. Install Flask (`pip install flask` or `python3 install flask`)
-3. When you run the program, the terminal should show the url at which the server is located. Navigate to that link
+3. `cd` into the `frontend` directory
+4. When you run the program, the terminal should show the url at which the server is located. Navigate to that link
     - If when clicking that link, access is denied, it's most likely because port 5000 is blocked
-    - If this is the case, run the command, `flask run -p 8000` to start the server on a different port (8000)
+    - If this is the case, run the command, `flask run -p 8000` to start the server on a different port (8000). You should be able to click on that link and see our app

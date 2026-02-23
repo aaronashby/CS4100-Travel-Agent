@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/main.css') }}"
+    />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="container">
+        <h1>Travel Agent</h1>
+        <p class="tag">
+          Plan trips, get packing suggestions and weather-aware tips.
+        </p>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <h2>Plan Your Trip</h2>
+        <form action="/plan" method="post" class="trip-form">
+          <label
+            >Destination
+            <input
+              name="destination"
+              type="text"
+              placeholder="City, Country"
+              required
+            />
+          </label>
+
+          <div class="row">
+            <label
+              >Start Date
+              <input name="start_date" type="date" required />
+            </label>
+            <label
+              >End Date
+              <input name="end_date" type="date" required />
+            </label>
+          </div>
+
+          <label
+            >Travelers
+            <input name="travelers" type="number" min="1" value="1" required />
+          </label>
+
+          <label
+            >Packing Preference
+            <select name="preference">
+              <option value="balanced">Balanced</option>
+              <option value="light">Pack Light</option>
+              <option value="comprehensive">Comprehensive</option>
+            </select>
+          </label>
+
+          <label class="checkbox"
+            >Include nearby attractions
+            <input name="attractions" type="checkbox" />
+          </label>
+
+          <div class="actions">
+            <button type="submit" class="btn">Get Plan</button>
+          </div>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>
