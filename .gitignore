@@ -1,0 +1,39 @@
+# Python
+# Virtual environment
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Byte-code files
+*.pyc
+__pycache__/
+*.whl
+
+# Distributions and packaging
+.egg-info/
+dist/
+build/
+*.egg
+
+# Testing and linting
+.pytest_cache/
+.tox/
+
+# Flask stuff
+instance/
+.webassets-cache
+
+# VS Code
+# User-specific settings (should not be shared with the team)
+.vscode/settings.json
+.vscode/tasks.json
+.vscode/launch.json
+.vscode/extensions.json
+.vscode/*.code-snippets
+
+# Operating System files
+.DS_Store # macOS
+Thumbs.db # Windows
