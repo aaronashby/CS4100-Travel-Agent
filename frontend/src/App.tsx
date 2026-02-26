@@ -78,10 +78,18 @@ export default function App() {
     return e;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const e = validate();
     setErrors(e);
-    if (Object.keys(e).length === 0) setSubmitted(true);
+    if (Object.keys(e).length === 0) {
+      try {
+        const response = await axios.post("http://localhost:5001/api/plan", form);
+        console.log("Plan Trip Response:", response.data);
+        setSubmitted(true);
+      } catch (error) {
+        console.error("Error planning trip:", error);
+      }
+    }
   };
 
   const handleReset = () => {

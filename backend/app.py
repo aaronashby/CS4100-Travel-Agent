@@ -11,7 +11,18 @@ def hello():
 
 @app.route('/api/plan', methods=['POST'])
 def plan_trip():
-    pass
+    data = request.json
+    destination = data.get('destination', 'Unknown Location')
+    
+    # Placeholder for actual travel planning logic
+    print(f"Received trip plan request for: {destination}")
+    print(f"Full details: {data}")
+    
+    return jsonify({
+        "status": "success",
+        "message": f"Successfully received trip plan for {destination}!",
+        "received_data": data
+    })
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
