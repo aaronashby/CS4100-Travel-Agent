@@ -70,11 +70,19 @@ export default function App() {
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.startDate) e.startDate = "Start date is required.";
+
     if (!form.endDate) e.endDate = "End date is required.";
+
     if (form.startDate && form.endDate && form.endDate < form.startDate)
       e.endDate = "End date must be after start date.";
+    
+    
     if (!form.destination && form.activities.length === 0)
       e.destination = "Provide a destination or at least one activity preference.";
+    if (!form.budget || parseInt(form.budget) <= 0)
+      e.budget = "Budget must be a positive number"
+    if (!form.travelers || parseInt(form.travelers) <= 0)
+      e.travelers = "Number of travelers must be positive"
     return e;
   };
 
