@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import "./App.css";
 import axios from "axios";
+import TripResult from "./TripResult";
+import type { TripPlan } from "./types";
 
 const ACTIVITY_OPTIONS = ["Museums", "Outdoors", "Food & Drink", "Shopping", "Nightlife", "Relaxation"];
 
@@ -58,6 +60,7 @@ export default function App() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [tripPlan, setTripPlan] = useState<TripPlan | null>(null);
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
@@ -85,6 +88,8 @@ export default function App() {
       try {
         const response = await axios.post("http://localhost:5001/api/plan", form);
         console.log("Plan Trip Response:", response.data);
+        // TODO: when backend returns full plan: setTripPlan(response.data.plan);
+        setTripPlan(null); // falls back to mock data in TripResult
         setSubmitted(true);
       } catch (error) {
         console.error("Error planning trip:", error);
@@ -94,34 +99,13 @@ export default function App() {
 
   const handleReset = () => {
     setSubmitted(false);
+    setTripPlan(null);
     setForm({ destination: "", startDate: "", endDate: "", budget: "", travelers: "", activities: [] });
     setErrors({});
   };
 
   if (submitted) {
-    return (
-      <div style={{ maxWidth: 500, margin: "60px auto", fontFamily: "system-ui, sans-serif", padding: "0 16px" }}>
-        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb", padding: "32px 28px" }}>
-          <div style={{ fontSize: "1.5rem", marginBottom: 8 }}>✈️ Trip Submitted!</div>
-          <p style={{ color: "#555", fontSize: "0.95rem", marginBottom: 20 }}>
-            Here's what you entered. Soon this will trigger the backend to generate your itinerary.
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: "0.9rem", color: "#333" }}>
-            {form.destination && <div><strong>Destination:</strong> {form.destination}</div>}
-            <div><strong>Dates:</strong> {form.startDate} → {form.endDate}</div>
-            {form.budget && <div><strong>Budget:</strong> ${form.budget}</div>}
-            {form.travelers && <div><strong>Travelers:</strong> {form.travelers}</div>}
-            {form.activities.length > 0 && <div><strong>Activities:</strong> {form.activities.join(", ")}</div>}
-          </div>
-          <button
-            onClick={handleReset}
-            style={{ marginTop: 24, padding: "10px 20px", borderRadius: 8, border: "none", background: "#4f8ef7", color: "#fff", fontWeight: 600, cursor: "pointer", fontSize: "0.9rem" }}
-          >
-            Plan Another Trip
-          </button>
-        </div>
-      </div>
-    );
+    return <TripResult plan={tripPlan} formData={form} onReset={handleReset} />;
   }
 
   return (
