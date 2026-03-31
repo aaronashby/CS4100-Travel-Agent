@@ -94,16 +94,41 @@ export default function App() {
 
   const validateDays = () => {
     if (!form.startDate)
-      return { isValid: false, error: "Start date is required." };
+      return {
+        isValid: false,
+        startDateError: "Start date is required.",
+        endDateError: "",
+      };
 
     if (!form.endDate)
-      return { isValid: false, error: "End date is required." };
+      return {
+        isValid: false,
+        startDateError: "",
+        endDateError: "End date is required.",
+      };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const startDate = new Date(form.startDate);
+    const endDate = new Date(form.endDate);
+
+    if (startDate < today)
+      return {
+        isValid: false,
+        startDateError: "Start date cannot be before today.",
+        endDateError: "",
+      };
 
     if (form.startDate && form.endDate && form.endDate < form.startDate)
-      return { isValid: false, error: "End date must be after start date." };
+      return {
+        isValid: false,
+        startDateError: "",
+        endDateError: "End date must be after start date.",
+      };
 
-    const startDateMs = new Date(form.startDate).valueOf();
-    const endDateMs = new Date(form.endDate).valueOf();
+    const startDateMs = startDate.valueOf();
+    const endDateMs = endDate.valueOf();
 
     const tripDurationMs = endDateMs - startDateMs;
     const durationNowToEndMs = endDateMs - Date.now().valueOf();
@@ -116,15 +141,20 @@ export default function App() {
     if (durationNowToEndDays > 16)
       return {
         isValid: false,
-        error: "End date must be at most 16 days from now",
+        startDateError: "",
+        endDateError: "End date must be at most 16 days from now",
       };
 
     const tripDurationDays = Math.round(tripDurationMs / millisecondsPerDay);
 
     if (tripDurationDays > 14)
-      return { isValid: false, error: "Trip duration must be at most 14 days" };
+      return {
+        isValid: false,
+        startDateError: "",
+        endDateError: "Trip duration must be at most 14 days",
+      };
 
-    return { isValid: true, error: "" };
+    return { isValid: true, startDateError: "", endDateError: "" };
   };
 
   const validate = () => {
@@ -132,7 +162,12 @@ export default function App() {
     const dateValidationResult = validateDays();
 
     if (!dateValidationResult.isValid) {
-      e.endDate = dateValidationResult.error;
+      if (dateValidationResult.startDateError) {
+        e.startDate = dateValidationResult.startDateError;
+      }
+      if (dateValidationResult.endDateError) {
+        e.endDate = dateValidationResult.endDateError;
+      }
     }
 
     if (!form.destination && form.activities.length === 0)
