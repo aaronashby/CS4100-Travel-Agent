@@ -1,8 +1,6 @@
 import math
 import random
 
-import requests
-import calendar
 
 #graph for the local search
 from city_graph import CityGraph
@@ -12,74 +10,96 @@ class get_location:
     # info used to calculate for the energy function
     # for temp year and month put in requested temp, year and month,
     # fot the rest like beach, give Booleans if the user selected them
-    def __init__(self, temp, year, month, beach, museum): 
-        self.temp = temp
-        self.year = year
-        self.month = month
-        self.beach = beach
+    def __init__(self, relaxation, museum, outdoors, nightlife, shopping): 
+        self.relaxation = relaxation
         self.museum = museum
+        self.outdoors = outdoors
+        self.nightlife = nightlife
+        self.shopping = shopping
+        self.graph = CityGraph()
 
-        self.temp_cache = {}
-        self.museum_cache = {}
-
-    #will get the energy of the function given the long and lat
-    def energy(self, lat, long):
-        total_energy = 0
-
-        temp_energy = self.get_temp_energy(lat, long)
-        total_energy += temp_energy
-        print("temp energy:", temp_energy)
-
-        if (self.museum):
-            #museum_energy = self.get_museums_energy(lat, long)
-            museum_energy = 0
-            total_energy += museum_energy
+        #uncomment this to run the local search and get the best location based on the energy function.
+        #get_location.get_best_of5(self)
 
 
-        if (self.beach):
-            beach_energy = self.get_beach_energy(lat, long)
-            total_energy += beach_energy
+    #gives diminishing returns for really gigh nums
+    def diminishing(self, x, max_score, k):
+        # Smooth diminishing returns curve
+        return (max_score * x) / (x + k)
+        
+    #energy function for the local
+    def energy(self, name):
+        city = self.graph.get_city(name)
+        total = 0
 
-        return total_energy
+        # Museums
+        if self.museum:
+            total += self.diminishing(
+                x=city["museum_count"],
+                max_score=10,
+                k = 85  
+            )
+
+        # Relaxation (beaches)
+        if self.relaxation:
+            total += self.diminishing(
+                x=city["beach_count"],
+                max_score=10,
+                k = 15  
+            )
+
+        # Outdoors (hikes)
+        if self.outdoors:
+            total += self.diminishing(
+                x=city["hike_count"],
+                max_score=10,
+                k = 15   
+            )
+
+        # Nightlife
+        if self.nightlife:
+            total += self.diminishing(
+                x=city["nightlife_count"],
+                max_score=10,
+                k = 750
+            )
+
+        # Shopping (malls)
+        if self.shopping:
+            total += self.diminishing(
+                x=city["mall_count"],
+                max_score=10,
+                k = 70  
+            )
+
+        return total * -1  # Negate to convert to energy (lower is better)
+
 
     #local search using the energy function to get the best logation.
     def get_best_place(self):
 
-        graph = CityGraph()  # loads touristy_cities.json automatically
-
-        # starts at boston
-        starting_node = graph.get_city("Boston")
+        # starts at a random city
+        starting_node = random.choice(self.graph.data)
 
         failed_moves = 0
         #decay and temp constants
-        #these t and d are such that assuming max ^e = -5 then the first bad choice has a 95% chance to be acepted
-        #after 100 turns the bad choice has a 20% chance of being accepted 
-        t = 97.5
-        d = 0.965
+        t = 197.5
+        d = 0.985
 
-        curent_energy = self.energy(starting_node["latitude"], starting_node["longitude"])
-        #we need to either create or find a graph for neiboring cities to use for this local search
+        curent_energy = self.energy(starting_node["name"])
         curent_city = starting_node
 
         #counter only here so I can see that the function is working.
-        counter = 0
         while (True):
-            print("move", counter)
-            counter += 1
             #list of all possible neighbors
             all_neighbors = curent_city["neighbors"]
 
             chosen_neighbor_name = random.choice(all_neighbors)
 
-            chosen_neighbor =  graph.get_city(chosen_neighbor_name["name"])
-
-            place_energy = self.energy(chosen_neighbor["latitude"],chosen_neighbor["longitude"])
-
-            print(place_energy)
-            print("failed moves:",failed_moves)
-            print("name:", curent_city['name'])
-
-            print ("testing if good move: ",  place_energy < curent_energy)
+            chosen_neighbor =  self.graph.get_city(chosen_neighbor_name["name"])
+            
+            #energy of the place we are trying to move to
+            place_energy = self.energy(chosen_neighbor["name"])
 
             if place_energy < curent_energy:
                 # good move
@@ -90,7 +110,9 @@ class get_location:
                 continue
             else:
                 #bad move chosen
-                if math.e ** (-place_energy/t) * 1000 > random.randint(0, 1000):
+                #difference has to be positive becuase place energy > current energy.
+                difference = place_energy - curent_energy
+                if math.e ** (-difference /t) * 1000 > random.randint(0, 1000):
                     failed_moves = 0
                     t = t * d
                     curent_energy = place_energy
@@ -103,166 +125,18 @@ class get_location:
             #if 5 random moves fail in a row then return the location as the solution
             if failed_moves >= 5:
                 #this will be the output for one of the runs
-                return curent_city
+                return curent_city, curent_energy
             
-    #energy helper classes to make sure that the energy function is not too cluddred
-    #scalar will be there just if in the future we want to make small changed to what gets wrighted more
+    def get_best_of5(self):
+        for ran in range(5):
+            city, energy = self.get_best_place()
+            print("run:", ran, "city:", city['name'], "energy:", energy)
+
+            #this will be the output for all 5 runs, we can use this to see which city is the best overall
+            #2 options, 1 to return all 5 cities and energies, or just return the best one. 
 
 
-    def get_temp_energy(self, lat, lon, scaler=1):
-        if not hasattr(self, "temp_cache"):
-            self.temp_cache = {}
-
-        key = (round(lat, 3), round(lon, 3))
-        if key in self.temp_cache:
-            return self.temp_cache[key]
-
-        url = (
-            "https://archive-api.open-meteo.com/v1/era5?"
-            f"latitude={lat}&longitude={lon}"
-            "&start_date=2005-01-01"
-            "&end_date=2025-12-31"
-            "&monthly=temperature_2m_mean"
-        )
-
-        try:
-            data = requests.get(url, timeout=10).json()
-        except:
-            self.temp_cache[key] = 10000
-            return 10000
-
-        print("RAW API RESPONSE:", data)
-
-        try:
-            temps = data["monthly"]["temperature_2m_mean"]
-            # pick the correct month (0-indexed)
-            mean_temp = temps[self.month - 1]
-        except:
-            self.temp_cache[key] = 10000
-            return 10000
-
-        energy = abs(mean_temp - self.temp) * scaler
-        self.temp_cache[key] = energy
-        return energy
-
-
-
-
-
-    #currently not working
-
-    # def get_museums_energy(self, lat, long, radius_km=10, scaler = 1):
-    #     """
-    #     Count museums near a given latitude/longitude using OpenStreetMap Overpass API.
-    #     radius_km: search radius in kilometers
-    #     """
-    #     # Convert km → meters for Overpass
-    #     radius_m = int(radius_km * 1000)
-
-    #     # Overpass QL query
-    #     query = f"""
-    #     [out:json];
-    #     (
-    #     node["tourism"="museum"](around:{radius_m},{lat},{long});
-    #     way["tourism"="museum"](around:{radius_m},{lat},{long});
-    #     relation["tourism"="museum"](around:{radius_m},{lat},{long});
-    #     );
-    #     out count;
-    #     """
-
-    #     url = "https://overpass-api.de/api/interpreter"
-    #     response = requests.post(url, data=query)
-
-    #     data = response.json()
-
-    #     # Overpass returns: {"elements":[{"type":"count","tags":{"nodes":"X"}}]}
-    #     if "elements" in data and len(data["elements"]) > 0:
-    #         count = int(data["elements"][0]["tags"]["nodes"])
-    #         #negetive 1 because the amount of meuseums should be a positive and this local search minimizes the energy function
-    #         return count * scaler * -1
-
-    #     return 0
-    
-    #small helper to convert a differnence with lat and long to km
-    def haversine(self, lat1, long1, lat2, long2):
-        R = 6371  # Earth radius in km
-        dlat = math.radians(lat2 - lat1)
-        dlon = math.radians(long2 - long1)
-        a = (
-            math.sin(dlat/2)**2 +
-            math.cos(math.radians(lat1)) *
-            math.cos(math.radians(lat2)) *
-            math.sin(dlon/2)**2
-        )
-        return 2 * R * math.asin(math.sqrt(a))
-
-    def get_beach_energy(self, lat, long, radius_km=50, scaler=1):
-        radius_m = int(radius_km * 1000)
-
-        query = f"""
-        [out:json];
-        (
-        node["natural"="beach"](around:{radius_m},{lat},{long});
-        way["natural"="beach"](around:{radius_m},{lat},{long});
-        relation["natural"="beach"](around:{radius_m},{lat},{long});
-        );
-        out center;
-        """
-
-        url = "https://overpass-api.de/api/interpreter"
-
-        try:
-            response = requests.post(url, data=query, timeout=20)
-            data = response.json()
-        except Exception:
-            # Overpass failed — treat as “no beach found”
-            return 10000 * scaler
-
-        if "elements" not in data or len(data["elements"]) == 0:
-            return 10000 * scaler
-
-        # compute nearest beach
-        min_dist = float("inf")
-        for el in data["elements"]:
-            if "lat" in el and "lon" in el:
-                blat, blong = el["lat"], el["lon"]
-            elif "center" in el:
-                blat, blong = el["center"]["lat"], el["center"]["lon"]
-            else:
-                continue
-
-            dist = self.haversine(lat, long, blat, blong)
-            min_dist = min(min_dist, dist)
-
-        return min_dist * scaler
-
-#running the function
-#this function will take a while just because calling the APIS will take time
 
 if __name__ == "__main__":
-
-    # Example user preferences
-    loc = get_location(
-        temp=25,
-        year=2026,
-        month=7,
-        beach=True, 
-        museum=False
-    )
-
-    results = []
-
-    print("\n=== Running 5 Local Search Trials ===\n")
-
-    for i in range(1):
-        final_city = loc.get_best_place()
-        energy = loc.energy(final_city["latitude"], final_city["longitude"])
-
-        results.append((final_city["name"], energy))
-
-        print(f"Run {i+1}: {final_city['name']}  |  Energy = {energy:.2f}")
-
-    print("\n=== Summary of Final Energies ===")
-    for i, (city, energy) in enumerate(results, start=1):
-        print(f"{i}. {city:<20}  Energy = {energy:.2f}")
-
+    tester = get_location(True, True, True, True,True)
+    tester.get_best_of5()
