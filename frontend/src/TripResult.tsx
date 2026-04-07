@@ -433,7 +433,7 @@ export default function TripResult({ plan, formData, onReset }: TripResultProps)
       >
         <div>
           <h1 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#111" }}>
-            {data.destination}
+            {formData.destination || data.destination}
           </h1>
           <p style={{ margin: "4px 0 0", fontSize: "0.9rem", color: "#666" }}>
             {formData.startDate} → {formData.endDate}

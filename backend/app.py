@@ -1,9 +1,26 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from datetime import datetime
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Import our AI components
+from location import LocationSearcher
+from poi_service import fetch_city_pois
+from csp import ItineraryCSP
+from astar import AStarPathfinder
+from city_graph import CityGraph
+from flight_service import fetch_flights
+from weather_service import fetch_weather
 
 app = Flask(__name__)
 # Enabling CORS so the React frontend can make requests to this backend
 CORS(app)
+
+city_graph = CityGraph()
+pathfinder = AStarPathfinder()
 
 @app.route('/api/hello', methods=['GET'])
 def hello():
@@ -12,16 +29,153 @@ def hello():
 @app.route('/api/plan', methods=['POST'])
 def plan_trip():
     data = request.json
-    destination = data.get('destination', 'Unknown Location')
+    destination_str = data.get('destination', '').strip()
+    start_date = data.get('startDate', '')
+    end_date = data.get('endDate', '')
+    budget = data.get('budget', '')
+    travelers = data.get('travelers', '')
+    activities = data.get('activities', [])
     
-    # Placeholder for actual travel planning logic
-    print(f"Received trip plan request for: {destination}")
-    print(f"Full details: {data}")
+    # 1. Location Selection (First Choice Hill Climbing) if destination is empty
+    if not destination_str:
+        print("[Plan] No destination provided. Running Hill Climbing search...")
+        searcher = LocationSearcher(activities)
+        best_city = searcher.search()
+        if best_city:
+            destination_str = best_city["name"]
+            city_data = best_city
+            print(f"[Plan] Hill Climbing selected: {destination_str}")
+        else:
+            return jsonify({"error": "No suitable destination found."}), 400
+    else:
+        # Match provided destination string to our data
+        city_data = city_graph.get_city(destination_str)
+        if not city_data:
+            # Fallback for unknown strings using simple requests geocoding 
+            # (Nominatim OpenStreetMap is free and doesn't require a key)
+            print(f"[Plan] City not in graph. Geocoding '{destination_str}'...")
+            try:
+                gc_resp = requests.get(
+                    "https://nominatim.openstreetmap.org/search",
+                    params={"q": destination_str, "format": "json", "limit": 1},
+                    headers={"User-Agent": "CS4100-Travel-Agent/1.0"},
+                    timeout=5
+                )
+                if gc_resp.status_code == 200 and gc_resp.json():
+                    gc_data = gc_resp.json()[0]
+                    city_data = {
+                        "name": destination_str,
+                        "latitude": float(gc_data["lat"]),
+                        "longitude": float(gc_data["lon"])
+                    }
+            except Exception as e:
+                print(f"[Plan] Geocoding failed: {e}")
+            
+            # Absolute fallback if geocoding fails
+            if not city_data:
+                city_data = {"name": destination_str, "latitude": 48.8566, "longitude": 2.3522} # Paris default
+
+    # Calculate trip duration
+    try:
+        d1 = datetime.strptime(start_date, "%Y-%m-%d")
+        d2 = datetime.strptime(end_date, "%Y-%m-%d")
+        days = (d2 - d1).days + 1
+        if days <= 0: days = 1
+    except:
+        days = 3
+
+    lat = city_data.get("latitude")
+    lon = city_data.get("longitude")
+
+    # 2. Fetch Real Flights (Aviationstack API)
+    print(f"[Plan] Fetching flights to {destination_str}...")
+    flights = fetch_flights(destination_str, start_date, end_date)
+
+    # 3. Fetch Weather Forecast
+    print(f"[Plan] Fetching weather for ({lat:.2f}, {lon:.2f})...")
+    weather_forecast = fetch_weather(lat, lon, days)
+    # Build a date->condition map for the CSP
+    weather_map = {}
+    for w in weather_forecast:
+        weather_map[w["date"]] = w["condition"]
+
+    # 4. Fetch Real POIs (Overpass API)
+    print(f"[Plan] Fetching POIs near {destination_str}...")
+    pois = fetch_city_pois(lat, lon, activities)
+
+    # 5. Schedule Itinerary (CSP)
+    print(f"[Plan] Running CSP scheduler for {days} days...")
+    csp = ItineraryCSP(days, pois, activities)
+    itinerary_plan = csp.solve(start_date)
+
+    # Inject real weather into the itinerary
+    if itinerary_plan:
+        for day in itinerary_plan:
+            day_date = day.get("date", "")
+            if day_date in weather_map:
+                day["weather"] = weather_map[day_date]
+
+    # 6. Refine with A* (Pathfinding/Distances)
+    print("[Plan] Computing A* travel distances...")
+    total_distance = 0
+    if itinerary_plan:
+        for day in itinerary_plan:
+            all_acts = day["morning"]["activities"] + day["afternoon"]["activities"] + day["evening"]["activities"]
+            for i in range(len(all_acts) - 1):
+                p1 = (all_acts[i]["lat"], all_acts[i]["lng"])
+                p2 = (all_acts[i+1]["lat"], all_acts[i+1]["lng"])
+                _, dist = pathfinder.find_path(p1, p2)
+                total_distance += dist
+
+    # 7. Generate Packing List (weather-aware + activity-aware)
+    packing_items = ["Passport", "Tickets", "Money", "Phone Charger", "Toiletries"]
+    act_lower = [a.lower() for a in activities]
     
+    # Activity-based items
+    if "outdoors" in act_lower: packing_items.extend(["Hiking boots", "Rain jacket", "Sunscreen"])
+    if "museums" in act_lower: packing_items.append("Walking shoes")
+    if "food & drink" in act_lower: packing_items.append("Dress clothes")
+    if "nightlife" in act_lower: packing_items.append("Party outfit")
+    if "relaxation" in act_lower: packing_items.extend(["Swimwear", "Beach towel"])
+    if "shopping" in act_lower: packing_items.append("Extra bag for gifts")
+    
+    # Weather-based items
+    weather_conditions = [w.get("condition", "") for w in weather_forecast]
+    if any(c == "rainy" for c in weather_conditions):
+        packing_items.extend(["Umbrella", "Waterproof jacket"])
+    if any(w.get("temp_f", 70) < 50 for w in weather_forecast):
+        packing_items.append("Warm layers")
+    if any(w.get("temp_f", 70) > 80 for w in weather_forecast):
+        packing_items.extend(["Sunglasses", "Light clothing"])
+    
+    # Duration-based items
+    if days >= 5:
+        packing_items.append("Laundry bag")
+    
+    # Traveler count-based
+    num_travelers = int(travelers) if travelers else 1
+    packing_items.append(f"{min(days * 2, 10)} t-shirts")
+    packing_items.append(f"{min(days, 5)} pants/shorts")
+
+    # 8. Format Response
+    print(f"[Plan] Done! {destination_str}, {days} days, {len(pois)} POIs, {round(total_distance, 1)} km travel.")
     return jsonify({
-        "status": "success",
-        "message": f"Successfully received trip plan for {destination}!",
-        "received_data": data
+        "destination": destination_str,
+        "flights": flights,
+        "packingList": { "items": list(set(packing_items)) },
+        "itinerary": itinerary_plan or [],
+        "ratings": [
+            {"category": "Food & Drink", "stars": 4},
+            {"category": "Outdoors", "stars": 5 if "outdoors" in act_lower else 3},
+            {"category": "Museums", "stars": 4 if "museums" in act_lower else 3},
+            {"category": "Nightlife", "stars": 4 if "nightlife" in act_lower else 3},
+            {"category": "Local Search", "stars": 5}
+        ],
+        "meta": {
+            "total_travel_distance_km": round(total_distance, 2),
+            "algorithm": "First-Choice Hill Climbing + CSP + A*",
+            "weather_source": "API" if any(w.get("description", "").startswith("Estimated") == False for w in weather_forecast) else "Heuristic"
+        }
     })
 
 if __name__ == "__main__":

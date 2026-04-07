@@ -41,3 +41,5 @@ Thumbs.db # Windows
 
 .claude/
 CLAUDE.md
+backend/.env
+backend/test_wiki.py
