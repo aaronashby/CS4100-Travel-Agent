@@ -1,60 +1,142 @@
+import math
 import random
+
+
+#graph for the local search
+from city_graph import CityGraph
 
 class get_location:
 
-    # avarage tempature desired by the user:
-    # also can add manhaten distance if user wants a specific location: ex(europe, north usa ...)
-    #numbers taken from a weather API
-    def __init__(self, temp): 
-        self.temp = temp
+    # info used to calculate for the energy function
+    # for temp year and month put in requested temp, year and month,
+    # fot the rest like beach, give Booleans if the user selected them
+    def __init__(self, relaxation, museum, outdoors, nightlife, shopping): 
+        self.relaxation = relaxation
+        self.museum = museum
+        self.outdoors = outdoors
+        self.nightlife = nightlife
+        self.shopping = shopping
+        self.graph = CityGraph()
 
-    #nums will be tempatures from a location in select dates. 
-    def energy(nums):
-        if not nums:
-            return temp
+        #uncomment this to run the local search and get the best location based on the energy function.
+        #get_location.get_best_of5(self)
+
+
+    #gives diminishing returns for really gigh nums
+    def diminishing(self, x, max_score, k):
+        # Smooth diminishing returns curve
+        return (max_score * x) / (x + k)
         
-        #avarage temp
-        avg = sum(nums)/ len(nums)
+    #energy function for the local
+    def energy(self, name):
+        city = self.graph.get_city(name)
+        total = 0
 
-        out = avg - temp
+        # Museums
+        if self.museum:
+            total += self.diminishing(
+                x=city["museum_count"],
+                max_score=10,
+                k = 85  
+            )
 
-        #returns the absolute value of avrage temp - desired temp, this is the energy function
-        return abs(out)
+        # Relaxation (beaches)
+        if self.relaxation:
+            total += self.diminishing(
+                x=city["beach_count"],
+                max_score=10,
+                k = 15  
+            )
+
+        # Outdoors (hikes)
+        if self.outdoors:
+            total += self.diminishing(
+                x=city["hike_count"],
+                max_score=10,
+                k = 15   
+            )
+
+        # Nightlife
+        if self.nightlife:
+            total += self.diminishing(
+                x=city["nightlife_count"],
+                max_score=10,
+                k = 750
+            )
+
+        # Shopping (malls)
+        if self.shopping:
+            total += self.diminishing(
+                x=city["mall_count"],
+                max_score=10,
+                k = 70  
+            )
+
+        return total * -1  # Negate to convert to energy (lower is better)
+
 
     #local search using the energy function to get the best logation.
-    def get_best_place:
+    def get_best_place(self):
+
+        # starts at a random city
+        starting_node = random.choice(self.graph.data)
+
+        failed_moves = 0
         #decay and temp constants
-        int temp = 0
-        int dec = 0
+        t = 197.5
+        d = 0.985
 
-        curent_energy = 1000
-        curent_neighbor = ""
+        curent_energy = self.energy(starting_node["name"])
+        curent_city = starting_node
 
+        #counter only here so I can see that the function is working.
         while (True):
             #list of all possible neighbors
-            all_neighbors = []
+            all_neighbors = curent_city["neighbors"]
 
-            chosen_neighbor = random.choice(all_neighbors)
-            #get this data from the API
-            place_temp = []
-            place_energy = energy(place_temp)
+            chosen_neighbor_name = random.choice(all_neighbors)
+
+            chosen_neighbor =  self.graph.get_city(chosen_neighbor_name["name"])
+            
+            #energy of the place we are trying to move to
+            place_energy = self.energy(chosen_neighbor["name"])
+
             if place_energy < curent_energy:
+                # good move
+                failed_moves = 0
+                t = t * d
                 curent_energy = place_energy
-                curent_neighbor = chosen_neighbor
+                curent_city = chosen_neighbor
                 continue
-
             else:
-                #bad move
-                if math.e ** (-4/t) * 1000 > random.randint(1, 1000):
-                    temp = temp * dec
+                #bad move chosen
+                #difference has to be positive becuase place energy > current energy.
+                difference = place_energy - curent_energy
+                if math.e ** (-difference /t) * 1000 > random.randint(0, 1000):
+                    failed_moves = 0
+                    t = t * d
                     curent_energy = place_energy
-                    curent_neighbor = chosen_neighbor
+                    curent_city = chosen_neighbor
                     continue
                 else:
-                    temp = temp * dec
-            #randome retart or reurn final location continu here
+                    #bad move not chosen
+                    failed_moves += 1
+                    t = t * d
+            #if 5 random moves fail in a row then return the location as the solution
+            if failed_moves >= 5:
+                #this will be the output for one of the runs
+                return curent_city, curent_energy
             
+    def get_best_of5(self):
+        for ran in range(5):
+            city, energy = self.get_best_place()
+            print("run:", ran, "city:", city['name'], "energy:", energy)
+
+            #this will be the output for all 5 runs, we can use this to see which city is the best overall
+            #2 options, 1 to return all 5 cities and energies, or just return the best one. 
 
 
 
-    
+if __name__ == "__main__":
+    tester = get_location(True, True, True, True,True)
+    tester.get_best_of5()
