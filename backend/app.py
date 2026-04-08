@@ -36,24 +36,20 @@ def plan_trip():
     travelers = data.get('travelers', '')
     activities = data.get('activities', [])
     
-    # 1. Location Selection (First Choice Hill Climbing) if destination is empty
+    # 1. Location Selection (First Choice Hill Climbing)
     if not destination_str:
-        print("[Plan] No destination provided. Running Hill Climbing search...")
         searcher = LocationSearcher(activities)
         best_city = searcher.search()
         if best_city:
             destination_str = best_city["name"]
             city_data = best_city
-            print(f"[Plan] Hill Climbing selected: {destination_str}")
         else:
             return jsonify({"error": "No suitable destination found."}), 400
     else:
         # Match provided destination string to our data
         city_data = city_graph.get_city(destination_str)
         if not city_data:
-            # Fallback for unknown strings using simple requests geocoding 
-            # (Nominatim OpenStreetMap is free and doesn't require a key)
-            print(f"[Plan] City not in graph. Geocoding '{destination_str}'...")
+            # Geocode fallback
             try:
                 gc_resp = requests.get(
                     "https://nominatim.openstreetmap.org/search",
@@ -68,12 +64,10 @@ def plan_trip():
                         "latitude": float(gc_data["lat"]),
                         "longitude": float(gc_data["lon"])
                     }
-            except Exception as e:
-                print(f"[Plan] Geocoding failed: {e}")
-            
-            # Absolute fallback if geocoding fails
+            except Exception:
+                pass
             if not city_data:
-                city_data = {"name": destination_str, "latitude": 48.8566, "longitude": 2.3522} # Paris default
+                city_data = {"name": destination_str, "latitude": 48.8566, "longitude": 2.3522} 
 
     # Calculate trip duration
     try:
@@ -87,24 +81,20 @@ def plan_trip():
     lat = city_data.get("latitude")
     lon = city_data.get("longitude")
 
-    # 2. Fetch Real Flights (Aviationstack API)
-    print(f"[Plan] Fetching flights to {destination_str}...")
+    # Fetch Real Flights (Aviationstack API)
     flights = fetch_flights(destination_str, start_date, end_date)
 
-    # 3. Fetch Weather Forecast
-    print(f"[Plan] Fetching weather for ({lat:.2f}, {lon:.2f})...")
+    # Fetch Weather Forecast
     weather_forecast = fetch_weather(lat, lon, days)
     # Build a date->condition map for the CSP
     weather_map = {}
     for w in weather_forecast:
         weather_map[w["date"]] = w["condition"]
 
-    # 4. Fetch Real POIs (Overpass API)
-    print(f"[Plan] Fetching POIs near {destination_str}...")
+    # Fetch Real POIs (Overpass API)
     pois = fetch_city_pois(lat, lon, activities)
 
-    # 5. Schedule Itinerary (CSP)
-    print(f"[Plan] Running CSP scheduler for {days} days...")
+    # Schedule Itinerary (CSP)
     csp = ItineraryCSP(days, pois, activities)
     itinerary_plan = csp.solve(start_date)
 
@@ -115,8 +105,7 @@ def plan_trip():
             if day_date in weather_map:
                 day["weather"] = weather_map[day_date]
 
-    # 6. Refine with A* (Pathfinding/Distances)
-    print("[Plan] Computing A* travel distances...")
+    # Refine with A* (Pathfinding/Distances)
     total_distance = 0
     if itinerary_plan:
         for day in itinerary_plan:
@@ -127,17 +116,23 @@ def plan_trip():
                 _, dist = pathfinder.find_path(p1, p2)
                 total_distance += dist
 
-    # 7. Generate Packing List (weather-aware + activity-aware)
+    # Generate Packing List (weather-aware + activity-aware)
     packing_items = ["Passport", "Tickets", "Money", "Phone Charger", "Toiletries"]
     act_lower = [a.lower() for a in activities]
     
     # Activity-based items
-    if "outdoors" in act_lower: packing_items.extend(["Hiking boots", "Rain jacket", "Sunscreen"])
-    if "museums" in act_lower: packing_items.append("Walking shoes")
-    if "food & drink" in act_lower: packing_items.append("Dress clothes")
-    if "nightlife" in act_lower: packing_items.append("Party outfit")
-    if "relaxation" in act_lower: packing_items.extend(["Swimwear", "Beach towel"])
-    if "shopping" in act_lower: packing_items.append("Extra bag for gifts")
+    if "outdoors" in act_lower: 
+        packing_items.extend(["Hiking boots", "Rain jacket", "Sunscreen"])
+    if "museums" in act_lower: 
+        packing_items.append("Walking shoes")
+    if "food & drink" in act_lower: 
+        packing_items.append("Dress clothes")
+    if "nightlife" in act_lower: 
+        packing_items.append("Party outfit")
+    if "relaxation" in act_lower: 
+        packing_items.extend(["Swimwear", "Beach towel"])
+    if "shopping" in act_lower: 
+        packing_items.append("Extra bag for gifts")
     
     # Weather-based items
     weather_conditions = [w.get("condition", "") for w in weather_forecast]
@@ -148,17 +143,13 @@ def plan_trip():
     if any(w.get("temp_f", 70) > 80 for w in weather_forecast):
         packing_items.extend(["Sunglasses", "Light clothing"])
     
-    # Duration-based items
     if days >= 5:
         packing_items.append("Laundry bag")
     
-    # Traveler count-based
     num_travelers = int(travelers) if travelers else 1
     packing_items.append(f"{min(days * 2, 10)} t-shirts")
     packing_items.append(f"{min(days, 5)} pants/shorts")
 
-    # 8. Format Response
-    print(f"[Plan] Done! {destination_str}, {days} days, {len(pois)} POIs, {round(total_distance, 1)} km travel.")
     return jsonify({
         "destination": destination_str,
         "flights": flights,

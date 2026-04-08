@@ -2,11 +2,7 @@ import random
 
 class ItineraryCSP:
     def __init__(self, days, pois, preferences):
-        """
-        :param days: Number of days in the trip
-        :param pois: List of POIs fetched from Overpass
-        :param preferences: List of user preference strings
-        """
+        # Initialize scheduling variables
         self.days = days
         self.pois = pois
         self.preferences = [p.lower() for p in preferences]
@@ -16,13 +12,12 @@ class ItineraryCSP:
         for d in range(days):
             for s in range(4):
                 self.variables.append((d, s))
-        
         # Domains: POIs filtered by category weight
         self.domains = {v: self._get_initial_domain(v) for v in self.variables}
         
     def _get_initial_domain(self, var):
         day, slot = var
-        # For lunch (1) and evening (3), prioritize Food & Drink POIs if available
+        # For lunch/evening, prioritize Food & Drink
         is_meal_time = (slot == 1 or slot == 3)
         
         # Also filter by user preferences
@@ -37,29 +32,26 @@ class ItineraryCSP:
                 # For activity slots, use preferred categories
                 if cat in self.preferences or cat == "general":
                     valid_pois.append(poi)
-        
-        # Fallback to any POIs from the requested activities if domain is still empty
+        # Fallbacks if domain is empty
         if not valid_pois:
             valid_pois = [p for p in self.pois if p.get("category", "General").lower() in self.preferences]
-            
-        # Absolute fallback to all POIs
         if not valid_pois:
             return self.pois
             
         return valid_pois
 
     def is_consistent(self, var, val, assignment):
-        """
-        Checks if assignining POI 'val' to slot 'var' is consistent with current assignment.
-        """
+        # Check if POI assignment satisfies constraints
         day, slot = var
         
-        # Constraint 1: Uniqueness (don't visit same place twice)
-        if any(val['name'] == other_val['name'] for other_val in assignment.values()):
-            return False
-            
-        # Constraint 2: Category Variety (don't do two of same category back-to-back on same day)
-        if slot > 0:
+        # Constraint 1: Uniqueness
+        # Softened: strict uniqueness only if enough POIs exist
+        if len(self.pois) >= len(self.variables):
+            if any(val['name'] == other_val['name'] for other_val in assignment.values()):
+                return False
+        # Constraint 2: Category Variety
+        # Softened: Enforce only if multiple preferences selected
+        if slot > 0 and len(self.preferences) > 1:
             prev_var = (day, slot - 1)
             if prev_var in assignment:
                 if assignment[prev_var]['category'] == val['category'] and val['category'] != "General":
@@ -68,7 +60,7 @@ class ItineraryCSP:
         return True
 
     def backtrack_search(self, assignment=None):
-        """Recursive backtracking solver"""
+        # Recursive backtracking solver
         if assignment is None:
             assignment = {}
             
@@ -101,7 +93,7 @@ class ItineraryCSP:
         from datetime import datetime, timedelta
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d") if start_date_str else datetime.now()
 
-        # Reformulate into the structure expected by the frontend
+        # Reformulate into frontend structure
         result = []
         for d in range(self.days):
             current_date = start_date + timedelta(days=d)
@@ -118,8 +110,7 @@ class ItineraryCSP:
                 poi = itinerary.get((d, s))
                 if not poi: continue
                 
-                # Map slots to frontend categories
-                # Slot 0 = Morning, 1 = Lunch (skip or add to morning/afternoon), 2 = Afternoon, 3 = Evening
+                # Map slots to frontend
                 activity_item = {
                     "id": f"d{d+1}-s{s}",
                     "name": poi["name"],

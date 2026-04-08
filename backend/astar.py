@@ -6,10 +6,7 @@ class AStarPathfinder:
         pass
 
     def haversine_distance(self, p1, p2):
-        """
-        Calculates the great circle distance between two points on the Earth.
-        :param p1, p2: (lat, lon) tuples
-        """
+        # Calculate great-circle distance between two earth coordinates
         lat1, lon1 = p1
         lat2, lon2 = p2
         R = 6371  # Earth radius in kilometers
@@ -25,16 +22,10 @@ class AStarPathfinder:
         return R * c
 
     def find_path(self, start_coords, end_coords, intermediate_nodes=[]):
-        """
-        A* Search implementation.
-        In this context, we take the shortest path between start and end.
-        If we have a graph of intermediate points, we'd traverse them.
-        For this assignment, we'll implement the logic of f(n) = g(n) + h(n).
-        """
+        # A* Search implementation (f(n) = g(n) + h(n))
         open_set = []
         heapq.heappush(open_set, (0 + self.haversine_distance(start_coords, end_coords), start_coords))
         
-        # Tracking costs
         g_score = {start_coords: 0}
         came_from = {}
         
@@ -42,11 +33,8 @@ class AStarPathfinder:
             _, current = heapq.heappop(open_set)
             
             if current == end_coords:
-                # Path found
                 return self.reconstruct_path(came_from, current), g_score[current]
                 
-            
-            # we'll treat the end_coords as the only "reachable" neighbor for a single hop.
             neighbors = [end_coords] + [n for n in intermediate_nodes if n != current]
             
             for neighbor in neighbors:

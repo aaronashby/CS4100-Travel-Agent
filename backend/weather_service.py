@@ -10,7 +10,7 @@ WEATHER_KEY = os.getenv("weather_api", "")
 
 
 def _classify_weather(description):
-    """Classify weather description into our standard conditions."""
+    # Classify weather into standard types
     desc = description.lower()
     if "rain" in desc or "shower" in desc or "drizzle" in desc:
         return "rainy"
@@ -27,7 +27,7 @@ def _classify_weather(description):
 
 
 def _try_openweathermap(lat, lon, num_days):
-    """Try OpenWeatherMap API."""
+    # Try OpenWeatherMap API
     try:
         params = {
             "lat": lat, "lon": lon,
@@ -59,15 +59,14 @@ def _try_openweathermap(lat, lon, num_days):
                     if len(forecasts) >= num_days:
                         break
             if forecasts:
-                print(f"[Weather] Got {len(forecasts)} days from OpenWeatherMap")
                 return forecasts
-    except Exception as e:
-        print(f"[Weather] OpenWeatherMap failed: {e}")
+    except Exception:
+        pass
     return None
 
 
 def _try_weatherapi(lat, lon, num_days):
-    """Try WeatherAPI.com."""
+    # Try WeatherAPI.com
     try:
         params = {
             "key": WEATHER_KEY,
@@ -91,18 +90,14 @@ def _try_weatherapi(lat, lon, num_days):
                     "description": day["day"]["condition"]["text"]
                 })
             if forecasts:
-                print(f"[Weather] Got {len(forecasts)} days from WeatherAPI.com")
                 return forecasts
-    except Exception as e:
-        print(f"[Weather] WeatherAPI.com failed: {e}")
+    except Exception:
+        pass
     return None
 
 
 def _estimated_weather(lat, num_days):
-    """
-    Generate reasonable weather estimates based on latitude.
-    Latitude-based heuristic: tropical -> sunny, high latitudes -> cloudy.
-    """
+    # Heuristic weather based on latitude
     abs_lat = abs(lat)
     today = datetime.now()
 
@@ -137,10 +132,7 @@ def _estimated_weather(lat, num_days):
 
 
 def fetch_weather(lat, lon, num_days=7):
-    """
-    Fetch weather forecast for a location.
-    Tries multiple APIs, falls back to latitude-based estimates.
-    """
+    # Return weather data using APIs or heuristics
     if WEATHER_KEY:
         result = _try_openweathermap(lat, lon, num_days)
         if result:
@@ -150,7 +142,6 @@ def fetch_weather(lat, lon, num_days=7):
         if result:
             return result
 
-    print("[Weather] APIs unavailable, using latitude-based seasonal estimates.")
     return _estimated_weather(lat, num_days)
 
 

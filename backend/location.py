@@ -4,10 +4,7 @@ from city_graph import CityGraph
 
 class LocationSearcher:
     def __init__(self, activities): 
-        """
-        :param activities: List of strings from frontend: 
-               ["Museums", "Outdoors", "Food & Drink", "Shopping", "Nightlife", "Relaxation"]
-        """
+        # Parse activity keywords
         self.activities = [a.lower() for a in activities]
         self.relaxation = "relaxation" in self.activities
         self.museum = "museums" in self.activities
@@ -49,28 +46,23 @@ class LocationSearcher:
         if self.shopping:
             total += self.diminishing(x=city.get("mall_count", 0), max_score=10, k=70)
 
-        # Food & Drink (Proxy Metric)
-        # We estimate food quality based on nightlife density and general tourism popularity
+        # Proxy Metric
         if self.food:
-            # Heuristic: strong nightlife and high tourism score usually correlate with great food scenes
             nightlife_val = city.get("nightlife_count", 0)
-            tourism_val = city.get("tourism_score", 0) # tourism_score is 0-10 in city_graph.py
-            
-            # Combine them into a proxy count
+            tourism_val = city.get("tourism_score", 0) 
             proxy_food_count = (nightlife_val * 0.5) + (tourism_val * 50)
             total += self.diminishing(x=proxy_food_count, max_score=10, k=400)
 
-        return total * -1  # Negate to convert to energy (lower is better)
+        return total * -1
 
     def get_best_place(self):
-        """First-Choice Hill Climbing implementation"""
+        # First-Choice Hill Climbing implementation
         if not self.graph.data:
             return None, 0
 
         starting_node = random.choice(self.graph.data)
         failed_moves = 0
         
-        # Simulated Annealing style parameters for the "First-Choice" variant
         t = 197.5
         d = 0.985
 
@@ -92,13 +84,11 @@ class LocationSearcher:
             place_energy = self.energy(chosen_neighbor["name"])
 
             if place_energy < current_energy:
-                # Better move found (First-Choice)
                 failed_moves = 0
                 t = t * d
                 current_energy = place_energy
                 current_city = chosen_neighbor
             else:
-                # Probabilistic jump (Exploration)
                 difference = place_energy - current_energy
                 if t > 0.1 and math.exp(-difference / t) * 1000 > random.randint(0, 1000):
                     failed_moves = 0
@@ -114,7 +104,7 @@ class LocationSearcher:
                 return current_city, current_energy
             
     def search(self, n_runs=5):
-        """Runs the search multiple times to avoid local optima and returns the absolute best."""
+        # Repeated search to avoid local optima
         best_city = None
         best_energy = float('inf')
         

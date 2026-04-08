@@ -23,7 +23,7 @@ EXCLUDE_WORDS = [
 
 
 def _fetch_wikipedia_places(lat, lon, radius=10000, limit=200):
-    """Fetch nearby Wikipedia articles with coordinates."""
+    # Fetch Wikipedia articles near coordinates
     params = {
         "action": "query",
         "list": "geosearch",
@@ -38,20 +38,17 @@ def _fetch_wikipedia_places(lat, lon, radius=10000, limit=200):
         if resp.status_code == 200:
             data = resp.json()
             return data.get("query", {}).get("geosearch", [])
-    except Exception as e:
-        print(f"  [POI] Wikipedia API failed: {e}")
+    except Exception:
+        pass
     return []
 
 
 def _guess_category(title, requested_activities):
-    """Guess category based on keywords, or return a random requested activity."""
+    # Map title to activity category
     title_lower = title.lower()
     
-    # Filter out obvious non-places (historical events, etc)
     if any(word in title_lower for word in EXCLUDE_WORDS):
         return None
-        
-    # Try to match keywords
     for act in requested_activities:
         keywords = CATEGORY_KEYWORDS.get(act, [])
         if any(kw in title_lower for kw in keywords):
@@ -64,19 +61,11 @@ def _guess_category(title, requested_activities):
 
 
 def fetch_city_pois(lat, lon, activities, radius_m=10000, limit_per_cat=15):
-    """
-    Fetch real places from Wikipedia Geosearch. This is extremely fast
-    and reliable compared to Overpass/Wikidata.
-    """
+    # Extract POIs from Wikipedia GeoSearch
     if not activities:
         activities = ["Museums", "Food & Drink", "Outdoors"]
-
-    print(f"  [POI] Fetching Wikipedia POIs near ({lat:.2f}, {lon:.2f})...")
     raw_places = _fetch_wikipedia_places(lat, lon, radius=radius_m)
-    
-    if not raw_places:
-        print("  [POI] No places found via Wikipedia.")
-        return []
+    if not raw_places: return []
 
     categorized_pois = {act: [] for act in activities}
     
@@ -94,16 +83,12 @@ def fetch_city_pois(lat, lon, activities, radius_m=10000, limit_per_cat=15):
                 "category": category
             })
 
-    # Flatten and limit per category
+    # Limit items per category
     final_pois = []
     for cat, places in categorized_pois.items():
-        # Shuffle to get variety if we assigned randomly
         random.shuffle(places)
-        selected = places[:limit_per_cat]
-        final_pois.extend(selected)
-        print(f"  [POI] Kept {len(selected)} '{cat}' POIs.")
+        final_pois.extend(places[:limit_per_cat])
 
-    print(f"  [POI] Total POIs returning: {len(final_pois)}")
     return final_pois
 
 

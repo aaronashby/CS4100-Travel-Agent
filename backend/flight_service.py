@@ -39,26 +39,18 @@ CITY_TO_IATA = {
 def city_to_iata(city_name):
     """Convert a city name to an IATA airport code."""
     city_lower = city_name.lower().strip()
-    # Direct match
     if city_lower in CITY_TO_IATA:
         return CITY_TO_IATA[city_lower]
-    # Partial match (e.g. "Boston, MA" -> "boston")
     for key, code in CITY_TO_IATA.items():
         if key in city_lower or city_lower in key:
             return code
-    # Fallback: first 3 characters uppercase
     return city_name[:3].upper()
 
 
 def fetch_flights(destination, start_date, end_date):
-    """
-    Fetch real flight data from Aviationstack API.
-    Returns outbound and return flight dicts.
-    """
+    # Fetch real flight data from Aviationstack API
     dest_iata = city_to_iata(destination)
-    
     if not AVIATION_KEY:
-        print("[Flights] No API key found, using defaults.")
         return _default_flights(destination, dest_iata, start_date, end_date)
 
     outbound = _fetch_one_flight(dest_iata, "arr", start_date)
@@ -67,7 +59,6 @@ def fetch_flights(destination, start_date, end_date):
     outbound_result = _format_flight(outbound, dest_iata, start_date, direction="outbound") if outbound else None
     return_result = _format_flight(return_flight, dest_iata, end_date, direction="return") if return_flight else None
 
-    # Fallback if API doesn't return usable data
     if not outbound_result:
         outbound_result = _default_flights(destination, dest_iata, start_date, end_date)["outbound"]
     if not return_result:
@@ -77,7 +68,7 @@ def fetch_flights(destination, start_date, end_date):
 
 
 def _fetch_one_flight(iata, direction, date):
-    """Fetch a single flight from the API."""
+    # Fetch a single flight from the API
     try:
         params = {
             "access_key": AVIATION_KEY,
@@ -98,13 +89,12 @@ def _fetch_one_flight(iata, direction, date):
             if flights:
                 return flights[0]
         return None
-    except Exception as e:
-        print(f"[Flights] API error: {e}")
+    except Exception:
         return None
 
 
 def _format_flight(flight_data, dest_iata, date, direction):
-    """Format raw Aviationstack data into our response structure."""
+    # Format raw Aviationstack data
     try:
         airline_name = flight_data.get("airline", {}).get("name", "Unknown Airlines")
         if not airline_name or airline_name.lower() == "empty":
@@ -136,7 +126,7 @@ def _format_flight(flight_data, dest_iata, date, direction):
 
 
 def _default_flights(destination, dest_iata, start_date, end_date):
-    """Fallback flight data if API fails."""
+    # Fallback flight data
     return {
         "outbound": {
             "airline": "Global Airways", "flightNumber": "GA100",
