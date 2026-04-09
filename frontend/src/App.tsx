@@ -84,6 +84,7 @@ export default function App() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [tripPlan, setTripPlan] = useState<TripPlan | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -113,8 +114,10 @@ export default function App() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const startDate = new Date(form.startDate);
-    const endDate = new Date(form.endDate);
+    const [startYear, startMonth, startDay] = form.startDate.split("-").map(Number);
+    const startDate = new Date(startYear, startMonth - 1, startDay);
+    const [endYear, endMonth, endDay] = form.endDate.split("-").map(Number);
+    const endDate = new Date(endYear, endMonth - 1, endDay);
 
     if (startDate < today)
       return {
@@ -134,19 +137,9 @@ export default function App() {
     const endDateMs = endDate.valueOf();
 
     const tripDurationMs = endDateMs - startDateMs;
-    const durationNowToEndMs = endDateMs - Date.now().valueOf();
     const millisecondsPerDay = 1000 * 60 * 60 * 24;
-
-    const durationNowToEndDays = Math.round(
-      durationNowToEndMs / millisecondsPerDay,
-    );
-
-    if (durationNowToEndDays > 16)
-      return {
-        isValid: false,
-        startDateError: "",
-        endDateError: "End date must be at most 16 days from now",
-      };
+    
+    // Removing 16 day limit so users can plan any time in the future
 
     const tripDurationDays = Math.round(tripDurationMs / millisecondsPerDay);
 
@@ -176,9 +169,9 @@ export default function App() {
     if (!form.destination && form.activities.length === 0)
       e.destination =
         "Provide a destination or at least one activity preference.";
-    if (!form.budget || parseInt(form.budget) <= 0)
+    if (form.budget && parseInt(form.budget) <= 0)
       e.budget = "Budget must be a positive number";
-    if (!form.travelers || parseInt(form.travelers) <= 0)
+    if (form.travelers && parseInt(form.travelers) <= 0)
       e.travelers = "Number of travelers must be positive";
     return e;
   };
@@ -187,17 +180,20 @@ export default function App() {
     const e = validate();
     setErrors(e);
     if (Object.keys(e).length === 0) {
+      setIsLoading(true);
+      console.log("Submitting form:", form);
       try {
         const response = await axios.post(
-          "http://localhost:5001/api/plan",
+          "http://127.0.0.1:5001/api/plan",
           form,
         );
         console.log("Plan Trip Response:", response.data);
-        // TODO: when backend returns full plan: setTripPlan(response.data.plan);
-        setTripPlan(null); // falls back to mock data in TripResult
+        setTripPlan(response.data);
         setSubmitted(true);
       } catch (error) {
         console.error("Error planning trip:", error);
+      } finally {
+        setIsLoading(false);
       }
     }
   };
@@ -209,6 +205,39 @@ export default function App() {
     setErrors({});
   };
 
+  if (isLoading) {
+    return (
+      <div style={{
+        height: "100dvh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "system-ui, sans-serif",
+        gap: 20
+      }}>
+        <div style={{
+          width: 40,
+          height: 40,
+          border: "4px solid #f3f3f3",
+          borderTop: "4px solid #4f8ef7",
+          borderRadius: "50%",
+          animation: "spin 1s linear infinite"
+        }} />
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+        <div style={{ textAlign: "center" }}>
+          <h2 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700 }}>Crafting your perfect trip...</h2>
+          <p style={{ color: "#666", marginTop: 8 }}>Our AI is searching for the best spots and optimizing your plan.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (submitted) {
     return <TripResult plan={tripPlan} formData={form} onReset={handleReset} />;
   }
@@ -216,37 +245,39 @@ export default function App() {
   return (
     <div
       style={{
-        maxWidth: 500,
-        margin: "60px auto",
+        minHeight: "100dvh",
+        display: "flex",
+        flexDirection: "column",
         fontFamily: "system-ui, sans-serif",
-        padding: "0 16px",
+        padding: "5vw",
+        boxSizing: "border-box",
+        maxWidth: "800px",
+        margin: "0 auto",
       }}
     >
-      <div style={{ marginBottom: 28 }}>
+      <div style={{ marginBottom: 32 }}>
         <h1
           style={{
-            fontSize: "1.6rem",
-            fontWeight: 700,
+            fontSize: "2.2rem",
+            fontWeight: 800,
             color: "#111",
             margin: 0,
+            letterSpacing: "-0.02em",
           }}
         >
-          ✈️ Travel Planner
+          Travel Planner
         </h1>
-        <p style={{ color: "#666", marginTop: 6, fontSize: "0.9rem" }}>
+        <p style={{ color: "#666", marginTop: 8, fontSize: "1.05rem" }}>
           Tell us about your trip and we'll handle the rest.
         </p>
       </div>
 
       <div
         style={{
-          background: "#fff",
-          borderRadius: 16,
-          border: "1px solid #e5e7eb",
-          padding: "28px 24px",
           display: "flex",
           flexDirection: "column",
-          gap: 20,
+          gap: 24,
+          flex: 1,
         }}
       >
         {/* Destination */}
@@ -269,7 +300,7 @@ export default function App() {
 
         {/* Dates */}
         <div
-          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
+          style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}
         >
           <Field label="Start Date" required>
             <input
@@ -307,26 +338,42 @@ export default function App() {
 
         {/* Budget + Travelers */}
         <div
-          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
+          style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}
         >
           <Field label="Budget (USD)">
             <input
               type="number"
-              style={inputStyle}
+              style={{
+                ...inputStyle,
+                borderColor: errors.budget ? "#e53e3e" : "#ddd",
+              }}
               placeholder="e.g. 2000"
               value={form.budget}
               onChange={(e) => set("budget", e.target.value)}
             />
+            {errors.budget && (
+              <span style={{ color: "#e53e3e", fontSize: "0.8rem" }}>
+                {errors.budget}
+              </span>
+            )}
           </Field>
           <Field label="# of Travelers">
             <input
               type="number"
-              style={inputStyle}
+              style={{
+                ...inputStyle,
+                borderColor: errors.travelers ? "#e53e3e" : "#ddd",
+              }}
               placeholder="e.g. 2"
               min={1}
               value={form.travelers}
               onChange={(e) => set("travelers", e.target.value)}
             />
+            {errors.travelers && (
+              <span style={{ color: "#e53e3e", fontSize: "0.8rem" }}>
+                {errors.travelers}
+              </span>
+            )}
           </Field>
         </div>
 
@@ -350,15 +397,16 @@ export default function App() {
         <button
           onClick={handleSubmit}
           style={{
-            marginTop: 4,
-            padding: "11px",
-            borderRadius: 10,
+            marginTop: "auto",
+            padding: "16px",
+            borderRadius: 12,
             border: "none",
             background: "#4f8ef7",
             color: "#fff",
             fontWeight: 700,
-            fontSize: "1rem",
+            fontSize: "1.1rem",
             cursor: "pointer",
+            width: "100%",
           }}
         >
           Plan My Trip →
