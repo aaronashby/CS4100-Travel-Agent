@@ -142,5 +142,5 @@ if __name__ == "__main__":
         {"name": "Midnight Bar", "category": "Nightlife", "lat": 48.8566, "lon": 2.3522},
     ]
     csp = ItineraryCSP(1, mock_pois, ["Museums", "Food & Drink"])
-    plan = csp.solve()
+    plan = csp.solve("2026-04-09")
     print(plan)
