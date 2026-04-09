@@ -85,8 +85,34 @@ export default function App() {
   const [submitted, setSubmitted] = useState(false);
   const [tripPlan, setTripPlan] = useState<TripPlan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<{ name: string; country: string; admin_name: string }[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleDestinationChange = async (value: string) => {
+    set("destination", value);
+    if (value.length >= 2) {
+      try {
+        const res = await axios.get(
+          `http://127.0.0.1:5001/api/cities/search?q=${encodeURIComponent(value)}`
+        );
+        setSuggestions(res.data);
+        setShowSuggestions(true);
+      } catch {
+        setSuggestions([]);
+      }
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const selectCity = (city: { name: string; country: string; admin_name: string }) => {
+    set("destination", `${city.name}, ${city.country}`);
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
 
   const toggleActivity = (a: string) =>
     setForm((f) => ({
@@ -282,15 +308,64 @@ export default function App() {
       >
         {/* Destination */}
         <Field label="Destination">
-          <input
-            style={{
-              ...inputStyle,
-              borderColor: errors.destination ? "#e53e3e" : "#ddd",
-            }}
-            placeholder="e.g. Tokyo, Japan"
-            value={form.destination}
-            onChange={(e) => set("destination", e.target.value)}
-          />
+          <div style={{ position: "relative" }}>
+            <input
+              style={{
+                ...inputStyle,
+                borderColor: errors.destination ? "#e53e3e" : "#ddd",
+              }}
+              placeholder="e.g. Tokyo, Japan"
+              value={form.destination}
+              onChange={(e) => handleDestinationChange(e.target.value)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+              autoComplete="off"
+            />
+            {showSuggestions && suggestions.length > 0 && (
+              <ul
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  right: 0,
+                  background: "#fff",
+                  border: "1.5px solid #ddd",
+                  borderRadius: 8,
+                  marginTop: 2,
+                  listStyle: "none",
+                  padding: 0,
+                  zIndex: 100,
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                  maxHeight: 240,
+                  overflowY: "auto",
+                  textAlign: "left",
+                  color: "#222",
+                }}
+              >
+                {suggestions.map((city, i) => (
+                  <li
+                    key={i}
+                    onMouseDown={() => selectCity(city)}
+                    style={{
+                      padding: "9px 12px",
+                      cursor: "pointer",
+                      fontSize: "0.95rem",
+                      borderBottom: i < suggestions.length - 1 ? "1px solid #f0f0f0" : "none",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f5f8ff")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "")}
+                  >
+                    <span style={{ fontWeight: 500 }}>{city.name}</span>
+                    <span style={{ color: "#888", marginLeft: 6, fontSize: "0.85rem" }}>
+                      {city.country === "United States" && city.admin_name
+                        ? `${city.admin_name}, ${city.country}`
+                        : city.country}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           {errors.destination && (
             <span style={{ color: "#e53e3e", fontSize: "0.8rem" }}>
               {errors.destination}

@@ -26,6 +26,37 @@ pathfinder = AStarPathfinder()
 def hello():
     return jsonify({"message": "Hello from the Flask backend!"})
 
+@app.route('/api/cities/search', methods=['GET'])
+def search_cities():
+    q = request.args.get('q', '').strip().lower()
+    if len(q) < 2:
+        return jsonify([])
+    name_prefix = []
+    name_contains = []
+    region_matches = []
+    for city in city_graph.data:
+        name = city.get('name', '')
+        country = city.get('country', '')
+        admin_name = city.get('admin_name', '') or ''
+        score = city.get('tourism_score', 0) or 0
+        entry = {"name": name, "country": country, "admin_name": admin_name, "_score": score}
+        name_lower = name.lower()
+        admin_lower = admin_name.lower()
+        country_lower = country.lower()
+        if name_lower.startswith(q):
+            name_prefix.append(entry)
+        elif q in name_lower:
+            name_contains.append(entry)
+        elif admin_lower.startswith(q) or q in admin_lower or country_lower.startswith(q) or q in country_lower:
+            region_matches.append(entry)
+    # sorts state/country matches by tourism_score so the most popular cities 
+    # appear first when searching broadly (e.g. "california" or "united states")
+    region_matches.sort(key=lambda x: x["_score"], reverse=True)
+    results = (name_prefix + name_contains + region_matches)[:8]
+    for r in results:
+        del r["_score"]  # strip internal ranking field before sending to frontend
+    return jsonify(results)
+
 @app.route('/api/plan', methods=['POST'])
 def plan_trip():
     data = request.json
